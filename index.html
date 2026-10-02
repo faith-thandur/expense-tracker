@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Personal Expense Tracker</title>
+  
+  <!-- PWA Manifest Link -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#17191c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Font Awesome Icons & Chart.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #17191c;
+      --card-bg: #24272b;
+      --card-border: #30343a;
+      --text-main: #f0f2f5;
+      --text-muted: #9ba3af;
+      --accent-blue: #4f6d8a;
+      --income-green: #2e7d32;
+      --expense-red: #c62828;
+      --input-bg: #1c1f24;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 12px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 24px;
+    }
+
+    /* Header & 3-Dot Menu */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      position: relative;
+    }
+
+    .header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .menu-btn {
+      background: none;
+      border: none;
+      color: var(--text-main);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 50px;
+      right: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      width: 220px;
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    .dropdown-menu.show {
+      display: block;
+    }
+
+    .dropdown-item {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-main);
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+      color: #ef5350;
+    }
+
+    .dropdown-item:active {
+      background: var(--card-border);
+    }
+
+    /* Balance Dashboard Cards */
+    .dashboard-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      padding: 18px;
+      text-align: center;
+    }
+
+    .net-balance-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .net-balance-val {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 6px 0 14px 0;
+      color: var(--text-main);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .summary-box {
+      background: var(--input-bg);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+    }
+
+    .summary-box.income { border-left: 4px solid #4caf50; }
+    .summary-box.expense { border-left: 4px solid #f44336; }
+
+    .summary-box span {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .summary-box strong {
+      font-size: 1.1rem;
+      margin-top: 4px;
+      display: block;
+    }
+
+    /* Form Styles */
+    .form-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .form-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-group label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .input-group input, .input-group select {
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .input-group input:focus, .input-group select:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .btn-submit {
+      background: var(--accent-blue);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    .btn-submit:active {
+      opacity: 0.9;
+    }
+
+    /* Chart Card */
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      padding: 16px;
+    }
+
+    /* History List */
+    .history-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      padding: 16px;
+    }
+
+    .history-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .history-item {
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      padding: 12px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .history-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .history-category {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .history-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .history-amount {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .history-amount.income-val { color: #4caf50; }
+    .history-amount.expense-val { color: #f44336; }
+
+    .btn-delete {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 0.9rem;
+    }
+
+    .btn-delete:hover {
+      color: #ef5350;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .modal-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .modal-btn.cancel { background: var(--input-bg); color: var(--text-main); }
+    .modal-btn.save { background: var(--accent-blue); color: white; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <div class="header">
+      <h1>Personal Expense Tracker</h1>
+      <button class="menu-btn" id="menuBtn"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+      
+      <!-- Dropdown Menu -->
+      <div class="dropdown-menu" id="dropdownMenu">
+        <div class="dropdown-item" id="openBalanceModal">
+          <i class="fa-solid fa-wallet"></i> Set Starting Balance
+        </div>
+        <div class="dropdown-item" onclick="alert('Monthly report export ready for end of month!')">
+          <i class="fa-solid fa-chart-pie"></i> Monthly Report
+        </div>
+        <div class="dropdown-item" onclick="alert('Share feature will generate monthly summary statement.')">
+          <i class="fa-solid fa-share-nodes"></i> Share Transactions
+        </div>
+        <div class="dropdown-item" id="resetDataBtn">
+          <i class="fa-solid fa-trash-arrow-up"></i> Reset All Data
+        </div>
+      </div>
+    </div>
+
+    <!-- Balance Dashboard -->
+    <div class="dashboard-card">
+      <div class="net-balance-label">Net Available Balance</div>
+      <div class="net-balance-val" id="netBalance">$0.00</div>
+
+      <div class="summary-grid">
+        <div class="summary-box income">
+          <span>Total Income</span>
+          <strong id="totalIncome">$0.00</strong>
+        </div>
+        <div class="summary-box expense">
+          <span>Total Expenses</span>
+          <strong id="totalExpenses">$0.00</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transaction Form -->
+    <div class="form-card">
+      <div class="form-title">Add Transaction</div>
+      <form id="transactionForm">
+        <div class="input-group">
+          <label>Description</label>
+          <input type="text" id="descInput" placeholder="e.g. Grocery Shop, Salary" required />
+        </div>
+        <div class="input-group" style="margin-top: 8px;">
+          <label>Amount ($)</label>
+          <input type="number" id="amountInput" step="0.01" placeholder="0.00" required />
+        </div>
+        <div class="input-group" style="margin-top: 8px;">
+          <label>Category</label>
+          <select id="categoryInput">
+            <option value="Income">Income</option>
+            <option value="Food & Dining">Food & Dining</option>
+            <option value="Bills & Utilities">Bills & Utilities</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Transportation">Transportation</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-submit" style="margin-top: 12px;">Save Transaction</button>
+      </form>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card">
+      <div class="form-title" style="margin-bottom: 8px;">Expense Distribution</div>
+      <canvas id="expenseChart" height="200"></canvas>
+    </div>
+
+    <!-- History List -->
+    <div class="history-card">
+      <div class="form-title">Transaction History</div>
+      <ul class="history-list" id="historyList"></ul>
+    </div>
+  </div>
+
+  <!-- Starting Balance Modal -->
+  <div class="modal-overlay" id="balanceModal">
+    <div class="modal-content">
+      <div class="form-title">Set Initial Starting Balance</div>
+      <div class="input-group">
+        <label>Initial Balance Amount ($)</label>
+        <input type="number" id="startingBalanceInput" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" id="closeBalanceModal">Cancel</button>
+        <button class="modal-btn save" id="saveStartingBalance">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Register Service Worker for Offline PWA Capabilities
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(() => console.log('Service Worker Registered Successfully'))
+          .catch(err => console.error('Service Worker Registration Failed:', err));
+      });
+    }
+
+    // App State
+    let startingBalance = parseFloat(localStorage.getItem('startingBalance')) || 0.00;
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    let chartInstance = null;
+
+    // DOM Elements
+    const netBalanceEl = document.getElementById('netBalance');
+    const totalIncomeEl = document.getElementById('totalIncome');
+    const totalExpensesEl = document.getElementById('totalExpenses');
+    const historyListEl = document.getElementById('historyList');
+    const form = document.getElementById('transactionForm');
+    const descInput = document.getElementById('descInput');
+    const amountInput = document.getElementById('amountInput');
+    const categoryInput = document.getElementById('categoryInput');
+
+    // Menu Controls
+    const menuBtn = document.getElementById('menuBtn');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    menuBtn.addEventListener('click', () => dropdownMenu.classList.toggle('show'));
+
+    // Modal Controls
+    const balanceModal = document.getElementById('balanceModal');
+    const openBalanceModalBtn = document.getElementById('openBalanceModal');
+    const closeBalanceModalBtn = document.getElementById('closeBalanceModal');
+    const saveStartingBalanceBtn = document.getElementById('saveStartingBalance');
+    const startingBalanceInput = document.getElementById('startingBalanceInput');
+
+    openBalanceModalBtn.addEventListener('click', () => {
+      dropdownMenu.classList.remove('show');
+      startingBalanceInput.value = startingBalance;
+      balanceModal.classList.add('show');
+    });
+
+    closeBalanceModalBtn.addEventListener('click', () => balanceModal.classList.remove('show'));
+
+    saveStartingBalanceBtn.addEventListener('click', () => {
+      const val = parseFloat(startingBalanceInput.value);
+      startingBalance = isNaN(val) ? 0 : val;
+      localStorage.setItem('startingBalance', startingBalance);
+      balanceModal.classList.remove('show');
+      updateUI();
+    });
+
+    // Reset Data
+    document.getElementById('resetDataBtn').addEventListener('click', () => {
+      dropdownMenu.classList.remove('show');
+      if (confirm('Are you sure you want to reset all transactions and starting balance to zero?')) {
+        localStorage.clear();
+        startingBalance = 0;
+        transactions = [];
+        updateUI();
+      }
+    });
+
+    // Add Transaction
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const desc = descInput.value.trim();
+      const rawAmt = parseFloat(amountInput.value);
+      const cat = categoryInput.value;
+
+      if (!desc || isNaN(rawAmt)) return;
+
+      const isExpense = cat !== 'Income';
+      const amount = isExpense ? -Math.abs(rawAmt) : Math.abs(rawAmt);
+
+      const transaction = {
+        id: Date.now(),
+        description: desc,
+        amount: amount,
+        category: cat
+      };
+
+      transactions.push(transaction);
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+
+      descInput.value = '';
+      amountInput.value = '';
+      updateUI();
+    });
+
+    // Delete Single Transaction
+    function deleteTransaction(id) {
+      transactions = transactions.filter(item => item.id !== id);
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+      updateUI();
+    }
+
+    // Chart Renderer
+    function renderChart(categoryTotals) {
+      const ctx = document.getElementById('expenseChart').getContext('2d');
+      const labels = Object.keys(categoryTotals);
+      const data = Object.values(categoryTotals);
+
+      if (chartInstance) chartInstance.destroy();
+
+      if (labels.length === 0) {
+        labels.push('No Expenses');
+        data.push(1);
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: ['#f44336', '#ff9800', '#2196f3', '#9c27b0', '#00bcd4', '#4caf50'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { labels: { color: '#f0f2f5', font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // Update UI Elements
+    function updateUI() {
+      const incomeTotal = transactions
+        .filter(item => item.amount > 0)
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      const expenseTotal = transactions
+        .filter(item => item.amount < 0)
+        .reduce((sum, item) => sum + Math.abs(item.amount), 0);
+
+      const netBalance = startingBalance + incomeTotal - expenseTotal;
+
+      netBalanceEl.textContent = `$${netBalance.toFixed(2)}`;
+      totalIncomeEl.textContent = `$${incomeTotal.toFixed(2)}`;
+      totalExpensesEl.textContent = `$${expenseTotal.toFixed(2)}`;
+
+      // Populate History List
+      historyListEl.innerHTML = '';
+      const categoryTotals = {};
+
+      transactions.slice().reverse().forEach(item => {
+        if (item.amount < 0) {
+          categoryTotals[item.category] = (categoryTotals[item.category] || 0) + Math.abs(item.amount);
+        }
+
+        const li = document.createElement('li');
+        li.className = 'history-item';
+        const isInc = item.amount > 0;
+
+        li.innerHTML = `
+          <div class="history-info">
+            <span class="history-title">${item.description}</span>
+            <span class="history-category">${item.category}</span>
+          </div>
+          <div class="history-right">
+            <span class="history-amount ${isInc ? 'income-val' : 'expense-val'}">
+              ${isInc ? '+' : ''}$${item.amount.toFixed(2)}
+            </span>
+            <button class="btn-delete" onclick="deleteTransaction(${item.id})">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        `;
+        historyListEl.appendChild(li);
+      });
+
+      renderChart(categoryTotals);
+    }
+
+    // Initial Load
+    updateUI();
+  </script>
+</body>
+</html>
